@@ -64,6 +64,10 @@ main(int argc, char *argv[]) {
   char *outfile = "/tmp/output.json";
   char *long_url;
   char short_url[256];
+  if (argc < 2) {
+    return 0;
+  }
+
   asprintf(&long_url, "%s", argv[1]);
 
   if (get_json(outfile, long_url)) {
