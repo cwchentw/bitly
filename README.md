@@ -4,8 +4,10 @@ bitly - shorten URL with the power of bitly.com
 
 ## Usage
 
+```
 $ bitly http://www.google.com.tw
 http://bit.ly/1tDK9YB
+```
 
 ## Prerequisites
 
