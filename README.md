@@ -32,10 +32,6 @@ The program query bitly.com to get a shortened URL.  Initially, I implemented th
 
 If your `bitly` executable is stolen, you can revoke the old token and apply for a new one.
 
-## Author
-
-Michale Chen <cwchen123 AT gmail DOT com>
-
 ## Copyright
 
-BSD license.
+Copyright (c) 2014 Michelle Chen. Licensed under BSD
