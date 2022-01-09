@@ -1,10 +1,10 @@
 #define _GNU_SOURCE  /* For asprintf(3). */
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include<curl/curl.h>
-#include<json-c/json.h>
+#include <curl/curl.h>
+#include <json-c/json.h>
 
 #define BASEURL "https://api-ssl.bitly.com"
 #define DOMAIN "bit.ly"
@@ -15,28 +15,33 @@ int get_url(char const *file, char *short_url);
 
 int main(int argc, char *argv[])
 {
+    /* Check whether a Bitly token is available. */
     char *token = getenv("BITLY_TOKEN");
     if (!token) {
         fprintf(stderr, "No Bitly Token\n");
         return 1;
     }
 
+    /* Check whether an URL is available. */
     if (argc < 2) {
         fprintf(stderr, "No URL\n");
         return 1;
     }
-    
+
+    /* FIXME: Create a random temporary file name. */
     char *outfile = "/tmp/output.json";
     char *long_url = NULL;
     char short_url[256];
 
     asprintf(&long_url, "%s", argv[1]);
 
+    /* Query Bitly to receive a JSON data. */
     if (get_json(outfile, long_url, token)) {
         fprintf(stderr, "Failed connection\n");
         goto ERROR;
     }
 
+    /* Parse the JSON data to get a shortened URL. */
     if (get_url(outfile, short_url)) {
         fprintf(stderr, "Unable to get url\n");
         goto ERROR;
@@ -44,6 +49,7 @@ int main(int argc, char *argv[])
 
     printf("%s\n", short_url);
 
+    /* Remove the temporary file. */
     if(remove(outfile)) {
         fprintf(stderr, "Unable to delete %s\n", outfile);
         goto ERROR;
@@ -70,9 +76,11 @@ int get_json(char const *outfile, char const *long_url, char const *token)
     if (!json_file)
         goto ERROR;
 
+    /* Initialize CURL. Call it before creating any CURL object. */
     if (curl_global_init(CURL_GLOBAL_DEFAULT))
         goto ERROR;
 
+    /* Create a CURL object. */
     curl = curl_easy_init();
     if (!curl)
         goto ERROR;
@@ -80,12 +88,13 @@ int get_json(char const *outfile, char const *long_url, char const *token)
     asprintf(
         &query_url,
         "%s/v3/shorten?access_token=%s&longUrl=%s&domain=%s",
-	      BASEURL, token, long_url, DOMAIN
+	    BASEURL, token, long_url, DOMAIN
     );
 
     curl_easy_setopt(curl, CURLOPT_URL, query_url);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, json_file);
 
+    /* Query Bitly with CURL to get a JSON data, which may fail. */
     CURLcode res = curl_easy_perform(curl);
     if (res)
       goto ERROR;
@@ -94,6 +103,7 @@ int get_json(char const *outfile, char const *long_url, char const *token)
     curl_easy_cleanup(curl);
     fclose(json_file);
 
+    /* Clean up CURL. Call it after other CURL functions. */
     curl_global_cleanup();
 
     return 0;
@@ -108,6 +118,7 @@ ERROR:
     if (json_file)
         fclose(json_file);
 
+    /* Clean up CURL. Call it after other CURL functions. */
     curl_global_cleanup();
 
     return 1;
@@ -116,21 +127,29 @@ ERROR:
 int get_url(char const *file, char *short_url)
 {
     json_object *json = NULL;
+
+    /* Create a JSON object. */
     json = json_object_from_file(file);
     if (!json)
         return 1;
 
+    /* Check whether the HTTP status code is 200 (OK). */
     json_object * json_status = json_object_object_get(json, "status_code");
+    /* Convert a JSON object to a C string which
+        represents a HTTP status code. */
     const char *status_code = json_object_get_string(json_status);
     int status = atoi(status_code);
     if (status != 200)
         goto ERROR;
 
+    /* Get a shortened URL. */
     json_object *json_data = json_object_object_get(json, "data");
     json_object *json_url = json_object_object_get(json_data, "url");
+    /* Convert a JSON object to a C string. */
     const char *url = json_object_get_string(json_url);
     strcpy(short_url, url);
 
+    /* Release the JSON object. */
     json_object_put(json);
 
     return 0;
