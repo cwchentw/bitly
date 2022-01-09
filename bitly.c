@@ -3,6 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if _WIN32
+    #include <winsock2.h>
+    #include <windows.h>
+    #include <tchar.h>
+#endif
+
 #include <curl/curl.h>
 #include <json-c/json.h>
 
@@ -28,8 +34,21 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+#if _WIN32
+    /* FIXME: Create a random temporary file name. */
+    char *outfile = NULL;
+
+    char *tempPath = getenv("TEMP");
+    if (!tempPath) {
+        fprintf(stderr, "Unable to get temporary directory\n");
+        return 1;
+    }
+
+    asprintf(&outfile, "%s\\%s", tempPath, "output.json");
+#else
     /* FIXME: Create a random temporary file name. */
     char *outfile = "/tmp/output.json";
+#endif
     char *long_url = NULL;
     char short_url[256];
 
@@ -38,13 +57,13 @@ int main(int argc, char *argv[])
     /* Query Bitly to receive a JSON data. */
     if (get_json(outfile, long_url, token)) {
         fprintf(stderr, "Failed connection\n");
-        goto ERROR;
+        goto ERROR_MAIN;
     }
 
     /* Parse the JSON data to get a shortened URL. */
     if (get_url(outfile, short_url)) {
         fprintf(stderr, "Unable to get url\n");
-        goto ERROR;
+        goto ERROR_MAIN;
     }
 
     printf("%s\n", short_url);
@@ -52,16 +71,20 @@ int main(int argc, char *argv[])
     /* Remove the temporary file. */
     if(remove(outfile)) {
         fprintf(stderr, "Unable to delete %s\n", outfile);
-        goto ERROR;
+        goto ERROR_MAIN;
     }
 
     free(long_url);
 
     return 0;
 
-ERROR:
+ERROR_MAIN:
     if (long_url)
       free(long_url);
+
+    if(remove(outfile)) {
+        fprintf(stderr, "Unable to delete %s\n", outfile);
+    }
 
     return 1;
 }
@@ -73,17 +96,23 @@ int get_json(char const *outfile, char const *long_url, char const *token)
     char *query_url = NULL;
   
     json_file = fopen(outfile, "w");
-    if (!json_file)
-        goto ERROR;
+    if (!json_file) {
+        fprintf(stderr, "Unable to create a JSON file\n");
+        goto ERROR_CURL;
+    }
 
     /* Initialize CURL. Call it before creating any CURL object. */
-    if (curl_global_init(CURL_GLOBAL_DEFAULT))
-        goto ERROR;
+    if (curl_global_init(CURL_GLOBAL_DEFAULT)) {
+        fprintf(stderr, "Unable to initialize CURL\n");
+        goto ERROR_CURL;
+    }
 
     /* Create a CURL object. */
     curl = curl_easy_init();
-    if (!curl)
-        goto ERROR;
+    if (!curl) {
+        fprintf(stderr, "Unable to create a CURL object\n");
+        goto ERROR_CURL;
+    }
 
     asprintf(
         &query_url,
@@ -96,8 +125,10 @@ int get_json(char const *outfile, char const *long_url, char const *token)
 
     /* Query Bitly with CURL to get a JSON data, which may fail. */
     CURLcode res = curl_easy_perform(curl);
-    if (res)
-      goto ERROR;
+    if (res) {
+        fprintf(stderr, "Failed to query bitly.com\n");
+        goto ERROR_CURL;
+    }
 
     free(query_url);
     curl_easy_cleanup(curl);
@@ -108,7 +139,7 @@ int get_json(char const *outfile, char const *long_url, char const *token)
 
     return 0;
 
-ERROR:
+ERROR_CURL:
     if (query_url)
         free(query_url);
 
@@ -140,7 +171,7 @@ int get_url(char const *file, char *short_url)
     const char *status_code = json_object_get_string(json_status);
     int status = atoi(status_code);
     if (status != 200)
-        goto ERROR;
+        goto ERROR_JSON;
 
     /* Get a shortened URL. */
     json_object *json_data = json_object_object_get(json, "data");
@@ -154,7 +185,7 @@ int get_url(char const *file, char *short_url)
 
     return 0;
 
-ERROR:
+ERROR_JSON:
     if (json)
         json_object_put(json);
 
