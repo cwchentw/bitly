@@ -124,6 +124,7 @@ int get_json(char const *outfile, char const *long_url, char const *token)
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, json_file);
 
     /* Query Bitly with CURL to get a JSON data, which may fail. */
+    /* FIXME: Unable to query bitly.com on Windows. */
     CURLcode res = curl_easy_perform(curl);
     if (res) {
         fprintf(stderr, "Failed to query bitly.com\n");
