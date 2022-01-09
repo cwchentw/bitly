@@ -18,9 +18,7 @@ In addition, the program needs an access token from bitly.com. You need to sign 
 
 ## Install
 
-Install libcurl and json-c with system package manager on Linux.  On Mac, you may install libcurl and json-c with [Homebrew](http://brew.sh/).
-
-Just run `make` in the root directory of the project.  Then, move the executive `bitly` to a system executive directory like */usr/local/bin*.
+Just run `make` in the root directory of this project.  Then, move the executive `bitly` to a system executive directory like */usr/local/bin*.
 
 ## Breaking Changes
 
